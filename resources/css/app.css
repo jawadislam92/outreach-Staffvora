@@ -2,88 +2,121 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===================== Theme tokens (Light / Dark / Black) =====================
-   Switched by `data-theme` on <html> (cookie `outreach_theme`, set by the
-   ThemeSwitcher and read server-side in app.blade.php so there is no flash).
-   Components only use the semantic utilities backed by these vars:
-   bg-app, bg-surface, bg-surface-2, border-line, text-body, text-muted,
-   text-subtle, bg-accent / text-accent, and the status tokens. */
+/* ============================ Outreach theme ============================
+   Warm paper + violet→fuchsia gradient brand, with a deep-violet sidebar
+   that stays dark in every theme. Pages only use the semantic utilities
+   (bg-app, bg-surface, bg-surface-2, border-line, text-body, text-muted,
+   text-subtle, bg-accent/text-accent, status tokens) so the look lives here.
+   Themes switch via `data-theme` on <html> (cookie `outreach_theme`). */
 :root, [data-theme="light"] {
     color-scheme: light;
-    --bg: #f5f7fb;
+    --bg: #f7f5f0;
     --surface: #ffffff;
-    --surface-2: #f1f5f9;
-    --border: #e2e8f0;
-    --text: #0f172a;
-    --text-muted: #475569;
-    --text-subtle: #616f85;
-    --accent: #2563eb;
+    --surface-2: #f2efe8;
+    --border: #e5e0d4;
+    --text: #221c35;
+    --text-muted: #5e5776;
+    --text-subtle: #857e98;
+    --accent: #7c3aed;
+    --grad-from: #7c3aed;
+    --grad-to: #d946ef;
 
-    /* Categorical data-viz slots: 1 violet, 2 green, 3 blue, 4 amber, 5 pink. */
-    --viz-1: #7c3aed; --viz-2: #059669; --viz-3: #2563eb; --viz-4: #b45309; --viz-5: #db2777;
+    /* Categorical data-viz slots: 1 violet, 2 teal, 3 sky, 4 amber, 5 rose. */
+    --viz-1: #7c3aed; --viz-2: #0d9488; --viz-3: #0284c7; --viz-4: #d97706; --viz-5: #e11d48;
     --viz-1-soft: color-mix(in srgb, #7c3aed 12%, transparent);
-    --viz-2-soft: color-mix(in srgb, #059669 12%, transparent);
-    --viz-3-soft: color-mix(in srgb, #2563eb 12%, transparent);
-    --viz-4-soft: color-mix(in srgb, #b45309 12%, transparent);
-    --viz-5-soft: color-mix(in srgb, #db2777 12%, transparent);
+    --viz-2-soft: color-mix(in srgb, #0d9488 12%, transparent);
+    --viz-3-soft: color-mix(in srgb, #0284c7 12%, transparent);
+    --viz-4-soft: color-mix(in srgb, #d97706 12%, transparent);
+    --viz-5-soft: color-mix(in srgb, #e11d48 12%, transparent);
 }
 [data-theme="dark"] {
     color-scheme: dark;
-    --bg: #070b18;
-    --surface: #0e1628;
-    --surface-2: #131f38;
-    --border: #1e2b45;
-    --text: #eef2fb;
-    --text-muted: #aeb9d0;
-    --text-subtle: #8790a6;
-    --accent: #3b82f6;
+    --bg: #131022;
+    --surface: #1b1631;
+    --surface-2: #251e41;
+    --border: #352c56;
+    --text: #efeafb;
+    --text-muted: #b6accf;
+    --text-subtle: #8f85a9;
+    --accent: #a78bfa;
+    --grad-from: #8b5cf6;
+    --grad-to: #d946ef;
 
-    --viz-1: #8b5cf6; --viz-2: #10b981; --viz-3: #3b82f6; --viz-4: #f59e0b; --viz-5: #ec4899;
-    --viz-1-soft: color-mix(in srgb, #8b5cf6 14%, transparent);
-    --viz-2-soft: color-mix(in srgb, #10b981 14%, transparent);
-    --viz-3-soft: color-mix(in srgb, #3b82f6 14%, transparent);
-    --viz-4-soft: color-mix(in srgb, #f59e0b 14%, transparent);
-    --viz-5-soft: color-mix(in srgb, #ec4899 14%, transparent);
+    --viz-1: #a78bfa; --viz-2: #2dd4bf; --viz-3: #38bdf8; --viz-4: #fbbf24; --viz-5: #fb7185;
+    --viz-1-soft: color-mix(in srgb, #a78bfa 15%, transparent);
+    --viz-2-soft: color-mix(in srgb, #2dd4bf 15%, transparent);
+    --viz-3-soft: color-mix(in srgb, #38bdf8 15%, transparent);
+    --viz-4-soft: color-mix(in srgb, #fbbf24 15%, transparent);
+    --viz-5-soft: color-mix(in srgb, #fb7185 15%, transparent);
 }
 [data-theme="black"] {
     color-scheme: dark;
-    --bg: #000000;
-    --surface: #0a0a0a;
-    --surface-2: #161616;
-    --border: #262626;
-    --text: #fafafa;
-    --text-muted: #a3a3a3;
-    --text-subtle: #8a8a8a;
-    --accent: #3b82f6;
+    --bg: #0a0814;
+    --surface: #131020;
+    --surface-2: #1d182e;
+    --border: #2b2444;
+    --text: #f4f0fd;
+    --text-muted: #b3a9cc;
+    --text-subtle: #8b81a5;
+    --accent: #a78bfa;
+    --grad-from: #8b5cf6;
+    --grad-to: #d946ef;
 
-    --viz-1: #8b5cf6; --viz-2: #10b981; --viz-3: #3b82f6; --viz-4: #f59e0b; --viz-5: #ec4899;
-    --viz-1-soft: color-mix(in srgb, #8b5cf6 14%, transparent);
-    --viz-2-soft: color-mix(in srgb, #10b981 14%, transparent);
-    --viz-3-soft: color-mix(in srgb, #3b82f6 14%, transparent);
-    --viz-4-soft: color-mix(in srgb, #f59e0b 14%, transparent);
-    --viz-5-soft: color-mix(in srgb, #ec4899 14%, transparent);
+    --viz-1: #a78bfa; --viz-2: #2dd4bf; --viz-3: #38bdf8; --viz-4: #fbbf24; --viz-5: #fb7185;
+    --viz-1-soft: color-mix(in srgb, #a78bfa 15%, transparent);
+    --viz-2-soft: color-mix(in srgb, #2dd4bf 15%, transparent);
+    --viz-3-soft: color-mix(in srgb, #38bdf8 15%, transparent);
+    --viz-4-soft: color-mix(in srgb, #fbbf24 15%, transparent);
+    --viz-5-soft: color-mix(in srgb, #fb7185 15%, transparent);
 }
 
-/* Semantic status tokens (theme-stable hues; alpha tints read on any bg). */
+/* The sidebar is deliberately the same deep violet in every theme — it is the
+   app's identity and what keeps the light theme from feeling flat. */
 :root {
-    --success: #16a34a; --success-soft: rgba(22, 163, 74, 0.14);
-    --warning: #d97706; --warning-soft: rgba(217, 119, 6, 0.16);
-    --danger:  #dc2626; --danger-soft:  rgba(220, 38, 38, 0.14);
-    --info:    #2563eb; --info-soft:    rgba(37, 99, 235, 0.14);
+    --side-bg: #180f33;
+    --side-surface: #221847;
+    --side-border: #31255c;
+    --side-text: #d9d1f2;
+    --side-muted: #9d92c4;
+}
+[data-theme="black"] { --side-bg: #100a24; --side-surface: #1a1238; --side-border: #281d4e; }
+
+/* Semantic status tokens (alpha tints read on any background). */
+:root {
+    --success: #16a34a; --success-soft: rgba(22, 163, 74, 0.13);
+    --warning: #d97706; --warning-soft: rgba(217, 119, 6, 0.15);
+    --danger:  #dc2626; --danger-soft:  rgba(220, 38, 38, 0.12);
+    --info:    #7c3aed; --info-soft:    rgba(124, 58, 237, 0.12);
 }
 [data-theme="dark"], [data-theme="black"] {
-    --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --info: #3b82f6;
+    --success: #4ade80; --warning: #fbbf24; --danger: #f87171; --info: #a78bfa;
+    --success-soft: rgba(74, 222, 128, 0.14); --warning-soft: rgba(251, 191, 36, 0.15);
+    --danger-soft: rgba(248, 113, 113, 0.14); --info-soft: rgba(167, 139, 250, 0.15);
 }
 
 html { background-color: var(--bg); color: var(--text); }
 ::selection { background-color: var(--accent); color: #fff; }
-
-/* One branded keyboard-focus ring for every theme. */
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Brand gradient helpers. */
+.bg-brand-gradient { background-image: linear-gradient(135deg, var(--grad-from), var(--grad-to)); }
+.text-brand-gradient {
+    background-image: linear-gradient(120deg, var(--grad-from), var(--grad-to));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* Soft ambient glow used on auth pages and hero areas. */
+.brand-glow {
+    background:
+        radial-gradient(42rem 22rem at 15% -10%, color-mix(in srgb, var(--grad-from) 16%, transparent), transparent 60%),
+        radial-gradient(36rem 20rem at 90% 0%, color-mix(in srgb, var(--grad-to) 13%, transparent), transparent 55%);
+}
 
 @layer base {
     /* Native form controls follow the active theme (mirrors @tailwindcss/forms'
-       selector list at the same specificity so utilities still win). */
+       selector list at the same specificity so utility classes still win). */
     [type='text'],
     [type='email'],
     [type='url'],
@@ -132,3 +165,8 @@ html { background-color: var(--bg); color: var(--text); }
 .scroll-thin { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
 .scroll-thin::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+
+/* Sidebar scrollbar on its dark surface. */
+.scroll-side { scrollbar-width: thin; scrollbar-color: var(--side-border) transparent; }
+.scroll-side::-webkit-scrollbar { width: 8px; }
+.scroll-side::-webkit-scrollbar-thumb { background: var(--side-border); border-radius: 8px; }

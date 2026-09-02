@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\SendStatus;
 use App\Models\EmailAccount;
+use App\Models\ScheduledEmail;
 use App\Models\SentEmail;
 use App\Models\User;
 use App\Support\CsvExport;
@@ -29,9 +30,20 @@ class LogController extends Controller
             ->withQueryString()
             ->through(fn (SentEmail $e) => self::row($e));
 
+        // Upcoming + recently finished scheduled sends for the Scheduled tab.
+        $scheduled = ScheduledEmail::query()
+            ->with(['user:id,name', 'account' => fn ($q) => $q->select('id', 'label', 'deleted_at'), 'campaign:id,name'])
+            ->where(fn ($q) => $q->pending()->orWhere('updated_at', '>=', now()->subDays(7)))
+            ->orderByRaw("CASE status WHEN 'scheduled' THEN 0 ELSE 1 END")
+            ->orderBy('scheduled_for')
+            ->limit(200)
+            ->get()
+            ->map(fn (ScheduledEmail $s) => ScheduleController::row($s));
+
         return Inertia::render('Log/Index', [
             'rows' => $rows,
             'filters' => $filters,
+            'scheduled' => $scheduled,
             'accounts' => EmailAccount::withTrashed()->orderBy('label')->get(['id', 'label'])->map(fn ($a) => ['id' => $a->id, 'label' => $a->label]),
             'members' => User::query()->orderBy('name')->get(['id', 'name'])->map(fn ($u) => ['id' => $u->id, 'name' => $u->name]),
             'statuses' => collect(SendStatus::cases())->map(fn (SendStatus $s) => ['value' => $s->value, 'label' => $s->label()]),

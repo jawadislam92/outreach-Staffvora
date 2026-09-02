@@ -23,7 +23,7 @@ small batches. DNS needs nothing — `*.staffvora.com` already points at the VPS
 ## Redeploy (from a local checkout, over SSH)
 ```powershell
 # local: tests green, build not required (the server builds), commit + push
-git -C C:\laragon\www\outreach archive --format=tar.gz --prefix=outreach/ -o $env:TEMP\outreach-release.tgz HEAD
+git -C C:\laragon\www\outreach-staffvora archive --format=tar.gz --prefix=outreach/ -o $env:TEMP\outreach-release.tgz HEAD
 scp $env:TEMP\outreach-release.tgz root@2.24.11.90:/root/
 ```
 ```bash
@@ -41,8 +41,20 @@ curl -s -o /dev/null -w '%{http_code}\n' https://outreach.staffvora.com/login   
 `public/build/` never leave the machine; the extract overwrites code and leaves `.env` and
 `storage/` alone.
 
-Alternative once a read-only deploy key for `github.com/jawadislam92/outreach` is installed on
-the server: `cd /var/www/outreach && git pull && …` (same steps from `composer install` down).
+Alternative once a read-only deploy key for `github.com/jawadislam92/outreach-staffvora` is
+installed on the server: `cd /var/www/outreach && git pull && …` (same steps from
+`composer install` down). The server directory is deliberately still `/var/www/outreach`.
+
+## Scheduler (scheduled sends)
+`/etc/cron.d/outreach-scheduler` runs `php artisan schedule:run` every minute, which fires
+`outreach:send-due` (delivers due scheduled emails; cap-blocked ones retry with back-off).
+Check it: `grep outreach /var/log/syslog | tail` or `php artisan outreach:send-due` by hand.
+
+## Setting the Google / Anthropic keys safely
+Run **`outreach-setup-keys`** on the server (as root). It prompts for GOOGLE_CLIENT_ID,
+GOOGLE_CLIENT_SECRET and ANTHROPIC_API_KEY with hidden input (leave any blank to keep the
+current value), writes them into `/var/www/outreach/.env`, rebuilds the config cache and
+prints which of them are now set — so secrets never appear in a terminal scrollback or chat.
 
 ## Changing configuration on the server
 Edit `/var/www/outreach/.env` (e.g. `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,

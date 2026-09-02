@@ -22,10 +22,12 @@ class LeadImporter
     public function __construct(private RecipientHistory $history) {}
 
     /**
+     * Import into a campaign, or into the shared lead list when $campaign is null.
+     *
      * @param  list<array<string, string>>  $rows
      * @param  array<string, ?string>  $mapping  canonical field → header key
      */
-    public function import(Campaign $campaign, array $rows, array $mapping, User $actor): ImportResult
+    public function import(?Campaign $campaign, array $rows, array $mapping, User $actor): ImportResult
     {
         $result = new ImportResult;
         $emailKey = $mapping['email'] ?? null;
@@ -37,7 +39,12 @@ class LeadImporter
         $maxAttrs = (int) config('outreach.import.max_attributes_chars', 4000);
         $mappedKeys = array_values(array_filter($mapping));
 
-        $existing = Lead::query()->where('campaign_id', $campaign->id)->pluck('email_normalized')->flip()->all();
+        // Campaign import dedupes within the campaign; list import dedupes
+        // against every known lead (one identity in the shared list).
+        $existing = ($campaign
+            ? Lead::query()->where('campaign_id', $campaign->id)
+            : Lead::query()
+        )->pluck('email_normalized')->flip()->all();
         $suppressed = Suppression::query()->pluck('email_normalized')->flip()->all();
 
         $prepared = [];
@@ -63,7 +70,7 @@ class LeadImporter
             $seen[$email] = true;
 
             if (isset($existing[$email])) {
-                $result->rejected[] = ['row' => $rowNo, 'email' => $email, 'reason' => 'Already in this campaign'];
+                $result->rejected[] = ['row' => $rowNo, 'email' => $email, 'reason' => $campaign ? 'Already in this campaign' : 'Already in your leads'];
 
                 continue;
             }
@@ -97,8 +104,9 @@ class LeadImporter
                 $attributes[$key] = $value;
             }
 
-            $subject = $this->value($row, $mapping['subject'] ?? null);
-            $body = $this->value($row, $mapping['body'] ?? null);
+            // Ready-made drafts only exist inside a campaign.
+            $subject = $campaign ? $this->value($row, $mapping['subject'] ?? null) : '';
+            $body = $campaign ? $this->value($row, $mapping['body'] ?? null) : '';
 
             $prepared[] = [
                 'email' => $parsed['email'],
@@ -126,7 +134,7 @@ class LeadImporter
                     $priorCount = (int) ($contacted[$item['email_normalized']] ?? 0);
 
                     $lead = Lead::query()->create($item + [
-                        'campaign_id' => $campaign->id,
+                        'campaign_id' => $campaign?->id,
                         'status' => $draft ? LeadStatus::Ready : LeadStatus::Pending,
                         'previously_contacted_count' => $priorCount,
                     ]);
@@ -135,7 +143,7 @@ class LeadImporter
                         $result->previouslyContacted++;
                     }
 
-                    if ($draft) {
+                    if ($draft && $campaign) {
                         Draft::query()->create([
                             'lead_id' => $lead->id,
                             'campaign_id' => $campaign->id,

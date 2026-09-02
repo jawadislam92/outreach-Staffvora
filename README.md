@@ -22,7 +22,7 @@ There is no inbox anywhere in the app. Replies land in the real mailbox as usual
 ## Local development (Windows / Laragon)
 ```powershell
 $env:PATH = "C:\laragon\bin\php\php-8.3.30-Win32-vs16-x64;C:\laragon\bin\composer;C:\laragon\bin\nodejs\node-v22;" + $env:PATH
-Set-Location C:\laragon\www\outreach
+Set-Location C:\laragon\www\outreach-staffvora
 composer install
 npm install
 copy .env.example .env          # then set DB_* (MySQL database `outreach`) and, when you have them, GOOGLE_* / ANTHROPIC_API_KEY

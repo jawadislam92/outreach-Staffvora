@@ -10,7 +10,7 @@ never be any. Full design: `C:/Users/jawad/.claude/plans/i-wanted-to-create-eleg
 ## Toolchain (Windows / Laragon — nothing is on PATH by default)
 ```powershell
 $env:PATH = "C:\laragon\bin\php\php-8.3.30-Win32-vs16-x64;C:\laragon\bin\composer;C:\laragon\bin\nodejs\node-v22;" + $env:PATH
-Set-Location C:\laragon\www\outreach
+Set-Location C:\laragon\www\outreach-staffvora
 php artisan test --compact                       # PHPUnit, SQLite in-memory, fast
 php artisan test --compact --filter=ReportsTest  # one class
 npm run build                                    # also the JSX syntax check (Vite 8 uses rolldown; esbuild is not installed). ~2–5s

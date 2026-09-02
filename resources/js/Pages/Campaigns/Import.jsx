@@ -13,11 +13,12 @@ const FIELD_LABELS = {
     last_name: ['Last name', 'fills {{last_name}}'],
     name: ['Full name', 'used when first/last are missing'],
     company: ['Company', 'fills {{company}}'],
-    subject: ['Subject (ready draft)', 'optional — imports as a ready-to-send draft'],
-    body: ['Body (ready draft)', 'optional — Markdown; pairs with subject'],
+    subject: ['Subject (ready draft)', 'campaign imports only — becomes a ready-to-send draft'],
+    body: ['Body (ready draft)', 'campaign imports only — Markdown; pairs with subject'],
 };
 
-export default function Import({ campaign, fields, max_rows }) {
+/** Serves both destinations: a campaign (campaign prop set) or the shared lead list. */
+export default function Import({ campaign, fields, max_rows, endpoints }) {
     const inputRef = useRef();
     const [step, setStep] = useState(1);
     const [busy, setBusy] = useState(false);
@@ -27,6 +28,9 @@ export default function Import({ campaign, fields, max_rows }) {
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
 
+    const intoList = !campaign;
+    const visibleFields = intoList ? fields.filter((f) => f !== 'subject' && f !== 'body') : fields;
+
     const upload = async (file) => {
         if (!file) return;
         setBusy(true);
@@ -35,7 +39,7 @@ export default function Import({ campaign, fields, max_rows }) {
         const fd = new FormData();
         fd.append('file', file);
         try {
-            const { data } = await window.axios.post(route('campaigns.import.preview', campaign.id), fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+            const { data } = await window.axios.post(endpoints.preview, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             setPreview(data);
             setMapping(data.mapping);
             setStep(2);
@@ -54,7 +58,7 @@ export default function Import({ campaign, fields, max_rows }) {
         }
         setBusy(true);
         try {
-            const { data } = await window.axios.post(route('campaigns.import.store', campaign.id), { token: preview.token, mapping });
+            const { data } = await window.axios.post(endpoints.store, { token: preview.token, mapping });
             setResult(data);
             setStep(3);
         } catch (err) {
@@ -68,14 +72,22 @@ export default function Import({ campaign, fields, max_rows }) {
     const usedKeys = Object.values(mapping).filter(Boolean);
 
     return (
-        <AppShell title={`Import · ${campaign.name}`}>
+        <AppShell title={intoList ? 'Import leads' : `Import · ${campaign.name}`}>
             <PageShell>
-                <PageHeader eyebrow={<Link href={route('campaigns.show', campaign.id)} className="hover:underline">{campaign.name}</Link>} title="Import leads" description="Upload a CSV, confirm which column is which, done. Nothing is emailed by importing." />
+                <PageHeader
+                    eyebrow={intoList
+                        ? <Link href={route('leads.index')} className="hover:underline">Leads</Link>
+                        : <Link href={route('campaigns.show', campaign.id)} className="hover:underline">{campaign.name}</Link>}
+                    title="Import leads"
+                    description={intoList
+                        ? 'Upload a CSV into your shared lead list — you can add them to a campaign any time. Nothing is emailed by importing.'
+                        : 'Upload a CSV, confirm which column is which, done. Nothing is emailed by importing.'}
+                />
 
                 <div className="flex items-center gap-3 text-sm">
                     {[['1', 'Upload'], ['2', 'Map columns'], ['3', 'Result']].map(([n, label], i) => (
                         <div key={n} className="flex items-center gap-3">
-                            <span className={`inline-flex h-7 items-center gap-2 rounded-full px-3 font-medium ${step === i + 1 ? 'bg-accent text-white' : step > i + 1 ? 'bg-success-soft text-success' : 'bg-surface-2 text-muted'}`}>{n}. {label}</span>
+                            <span className={`inline-flex h-7 items-center gap-2 rounded-full px-3 font-medium ${step === i + 1 ? 'bg-brand-gradient text-white' : step > i + 1 ? 'bg-success-soft text-success' : 'bg-surface-2 text-muted'}`}>{n}. {label}</span>
                             {i < 2 && <span className="h-px w-8 bg-line" />}
                         </div>
                     ))}
@@ -89,7 +101,7 @@ export default function Import({ campaign, fields, max_rows }) {
                                 <button type="button" onClick={() => inputRef.current?.click()} disabled={busy}
                                     onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); upload(e.dataTransfer.files?.[0]); }}
                                     className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-line bg-surface-2/40 px-6 py-14 text-center transition hover:border-accent hover:bg-accent/5">
-                                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent"><Upload className="h-6 w-6" /></span>
+                                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-gradient text-white"><Upload className="h-6 w-6" /></span>
                                     <span className="text-base font-medium text-body">{busy ? 'Reading…' : 'Drop a CSV here or click to choose'}</span>
                                     <span className="text-xs text-subtle">Exported from Excel, Google Sheets, Apollo, HubSpot… up to {max_rows} rows. Excel files (.xlsx) must be saved as CSV first.</span>
                                 </button>
@@ -98,11 +110,11 @@ export default function Import({ campaign, fields, max_rows }) {
                             <div className="text-sm text-muted">
                                 <div className="flex items-center gap-2 font-medium text-body"><FileSpreadsheet className="h-4 w-4" /> Recognised columns</div>
                                 <ul className="mt-2 space-y-1.5">
-                                    {fields.map((f) => (
+                                    {visibleFields.map((f) => (
                                         <li key={f}><span className="font-medium text-body">{FIELD_LABELS[f][0]}</span> <span className="text-subtle">— {FIELD_LABELS[f][1]}</span></li>
                                     ))}
                                 </ul>
-                                <p className="mt-3 text-xs text-subtle">Every other column (website, role, notes…) is kept and given to the AI for personalisation, and is available as a template variable.</p>
+                                <p className="mt-3 text-xs text-subtle">Every other column (website, role, notes…) is kept, given to the AI for personalisation, and available as a template variable.</p>
                             </div>
                         </div>
                     </Card>
@@ -113,7 +125,7 @@ export default function Import({ campaign, fields, max_rows }) {
                         <Card title="Map columns" description={`${fileName} · ${preview.row_count} rows · delimiter “${preview.delimiter}” · ${preview.encoding}${preview.skipped_blank ? ` · ${preview.skipped_blank} blank rows skipped` : ''}`}
                             actions={<><Button variant="secondary" onClick={() => setStep(1)}>Different file</Button><Button loading={busy} onClick={confirm}>Import {preview.row_count} leads</Button></>}>
                             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                                {fields.map((f) => (
+                                {visibleFields.map((f) => (
                                     <Field key={f} label={FIELD_LABELS[f][0]} htmlFor={`map-${f}`} hint={FIELD_LABELS[f][1]} required={f === 'email'}>
                                         <Select id={`map-${f}`} value={mapping[f] || ''} onChange={(e) => setMapping({ ...mapping, [f]: e.target.value || null })}>
                                             <option value="">— not in file —</option>
@@ -151,14 +163,14 @@ export default function Import({ campaign, fields, max_rows }) {
                             <div className="min-w-0 flex-1">
                                 <h2 className="text-lg font-semibold text-body">{result.created} lead{result.created === 1 ? '' : 's'} imported</h2>
                                 <dl className="mt-3 grid gap-x-8 gap-y-1.5 text-sm sm:grid-cols-2">
-                                    <div className="flex justify-between gap-4"><dt className="text-muted">With ready drafts from the file</dt><dd className="tabular-nums text-body">{result.with_drafts}</dd></div>
+                                    {!intoList && <div className="flex justify-between gap-4"><dt className="text-muted">With ready drafts from the file</dt><dd className="tabular-nums text-body">{result.with_drafts}</dd></div>}
                                     <div className="flex justify-between gap-4"><dt className="text-muted">Contacted before (flagged, not blocked)</dt><dd className="tabular-nums text-body">{result.previously_contacted}</dd></div>
                                     <div className="flex justify-between gap-4"><dt className="text-muted">Duplicates inside the file (skipped)</dt><dd className="tabular-nums text-body">{result.duplicates_in_file}</dd></div>
                                     <div className="flex justify-between gap-4"><dt className="text-muted">Rejected rows</dt><dd className={`tabular-nums ${result.rejected ? 'text-danger' : 'text-body'}`}>{result.rejected}</dd></div>
                                     {result.extra_addresses_ignored > 0 && <div className="flex justify-between gap-4 sm:col-span-2"><dt className="text-muted">Cells with several addresses (first one kept)</dt><dd className="tabular-nums text-body">{result.extra_addresses_ignored}</dd></div>}
                                 </dl>
                                 <div className="mt-5 flex flex-wrap gap-2">
-                                    <Button to={result.campaign_url}>Go to campaign & generate drafts</Button>
+                                    <Button to={result.campaign_url}>{intoList ? 'Go to your leads' : 'Go to campaign & generate drafts'}</Button>
                                     <Button variant="secondary" onClick={() => { setStep(1); setResult(null); setPreview(null); }}>Import another file</Button>
                                     {result.rejects_url && <Button variant="ghost" icon={<Download className="h-4 w-4" />} href={result.rejects_url}>Download rejected rows</Button>}
                                 </div>

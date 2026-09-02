@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { router } from '@inertiajs/react';
-import { Download, Filter, Paperclip, X } from 'lucide-react';
+import { router, usePage } from '@inertiajs/react';
+import { CalendarClock, Download, Filter, History, Paperclip, Send, X } from 'lucide-react';
 import AppShell from '@/Layouts/AppShell';
 import PageShell from '@/Components/Layout/PageShell';
 import PageHeader from '@/Components/Layout/PageHeader';
 import Modal from '@/Components/Modal';
-import { Badge, Button, Card, EmptyState, Field, Input, Pagination, Select, Spinner, Table, TBody, Td, Th, THead, Tr } from '@/Components/ui';
+import { Badge, Button, Card, ConfirmDialog, EmptyState, Field, Input, Pagination, Select, Spinner, Table, TBody, Td, Th, THead, Tabs, Tr } from '@/Components/ui';
 import { formatDateTime, formatGap } from '@/Utils/format';
 
-const STATUS_TONE = { sent: 'success', failed: 'danger', unknown: 'warning', pending: 'info' };
+const STATUS_TONE = { sent: 'success', failed: 'danger', unknown: 'warning', pending: 'info', scheduled: 'info', cancelled: 'neutral' };
 
 function Detail({ id, timezone, onClose }) {
     const [row, setRow] = useState(null);
@@ -68,9 +68,82 @@ function Detail({ id, timezone, onClose }) {
     );
 }
 
-export default function Index({ rows, filters, accounts, members, statuses, timezone }) {
+function ScheduledTable({ scheduled, timezone }) {
+    const { auth } = usePage().props;
+    const [cancelling, setCancelling] = useState(null);
+    const [busy, setBusy] = useState(null);
+    const canManage = (s) => auth.user.is_admin || s.user_id === auth.user.id;
+
+    if (scheduled.length === 0) {
+        return <EmptyState icon={<CalendarClock className="h-5 w-5" />} title="Nothing scheduled" description="Use “Schedule for later” on Compose or in a campaign queue — emails go out automatically at the chosen time." />;
+    }
+
+    return (
+        <>
+            <Table>
+                <THead>
+                    <Tr>
+                        <Th>Goes out</Th>
+                        <Th>To</Th>
+                        <Th>Subject</Th>
+                        <Th>By</Th>
+                        <Th>Account</Th>
+                        <Th>Status</Th>
+                        <Th className="text-right">Actions</Th>
+                    </Tr>
+                </THead>
+                <TBody>
+                    {scheduled.map((s) => (
+                        <Tr key={s.id}>
+                            <Td className="whitespace-nowrap tabular-nums text-body">{formatDateTime(s.scheduled_for, timezone)}</Td>
+                            <Td>
+                                <div className="max-w-[220px] truncate">{s.to_email}</div>
+                                {s.to_name && <div className="max-w-[220px] truncate text-xs text-subtle">{s.to_name}</div>}
+                            </Td>
+                            <Td className="max-w-[280px]">
+                                <div className="truncate text-muted">{s.subject}</div>
+                                {s.campaign && <div className="text-xs text-subtle">{s.campaign}</div>}
+                            </Td>
+                            <Td className="whitespace-nowrap">{s.user}</Td>
+                            <Td className="whitespace-nowrap text-muted">{s.account}</Td>
+                            <Td>
+                                <Badge tone={STATUS_TONE[s.status] || 'neutral'} dot title={s.last_error || undefined}>{s.status_label}</Badge>
+                                {s.status === 'scheduled' && s.last_error && <div className="mt-1 max-w-[240px] truncate text-xs text-warning" title={s.last_error}>{s.last_error}</div>}
+                                {s.status === 'failed' && s.last_error && <div className="mt-1 max-w-[240px] truncate text-xs text-danger" title={s.last_error}>{s.last_error}</div>}
+                            </Td>
+                            <Td className="text-right">
+                                {s.status === 'scheduled' && canManage(s) && (
+                                    <div className="inline-flex gap-1">
+                                        <Button size="xs" variant="secondary" icon={<Send className="h-3.5 w-3.5" />} loading={busy === s.id}
+                                            onClick={() => { setBusy(s.id); router.post(route('schedule.send-now', s.id), {}, { preserveScroll: true, onFinish: () => setBusy(null) }); }}>
+                                            Send now
+                                        </Button>
+                                        <Button size="xs" variant="ghost" className="text-danger" onClick={() => setCancelling(s)}>Cancel</Button>
+                                    </div>
+                                )}
+                            </Td>
+                        </Tr>
+                    ))}
+                </TBody>
+            </Table>
+            <ConfirmDialog
+                open={!!cancelling}
+                title={`Cancel the email to ${cancelling?.to_email}?`}
+                description="It will not be sent. You can compose and schedule it again any time."
+                confirmLabel="Cancel it"
+                tone="danger"
+                onClose={() => setCancelling(null)}
+                onConfirm={() => router.post(route('schedule.cancel', cancelling.id), {}, { preserveScroll: true, onSuccess: () => setCancelling(null) })}
+            />
+        </>
+    );
+}
+
+export default function Index({ rows, filters, scheduled, accounts, members, statuses, timezone }) {
     const [f, setF] = useState({ ...filters, account_id: filters.account_id || '', user_id: filters.user_id || '', status: filters.status || '', q: filters.q || '' });
     const [open, setOpen] = useState(null);
+    const upcoming = scheduled.filter((s) => s.status === 'scheduled').length;
+    const [tab, setTab] = useState('history');
 
     const params = (obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== '' && v != null));
     const apply = (e) => {
@@ -84,81 +157,95 @@ export default function Index({ rows, filters, accounts, members, statuses, time
             <PageShell>
                 <PageHeader
                     title="Send log"
-                    description="Every send attempt by anyone on the team, with the gap since the account's previous send."
-                    actions={<Button href={exportUrl} variant="secondary" icon={<Download className="h-4 w-4" />}>Export CSV</Button>}
+                    description="Every send attempt by anyone on the team, plus what's waiting to go out."
+                    actions={
+                        <>
+                            <Tabs value={tab} onChange={setTab} tabs={[
+                                { key: 'history', label: 'History', icon: <History className="h-3.5 w-3.5" /> },
+                                { key: 'scheduled', label: 'Scheduled', icon: <CalendarClock className="h-3.5 w-3.5" />, count: upcoming },
+                            ]} />
+                            {tab === 'history' && <Button href={exportUrl} variant="secondary" icon={<Download className="h-4 w-4" />}>Export CSV</Button>}
+                        </>
+                    }
                 />
 
-                <Card padded={false}>
-                    <form onSubmit={apply} className="grid gap-3 border-b border-line p-4 md:grid-cols-6">
-                        <Field label="From" htmlFor="f-from"><Input id="f-from" type="date" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} /></Field>
-                        <Field label="To" htmlFor="f-to"><Input id="f-to" type="date" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} /></Field>
-                        <Field label="Account" htmlFor="f-acc">
-                            <Select id="f-acc" value={f.account_id} onChange={(e) => setF({ ...f, account_id: e.target.value })}>
-                                <option value="">All</option>
-                                {accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
-                            </Select>
-                        </Field>
-                        <Field label="Member" htmlFor="f-user">
-                            <Select id="f-user" value={f.user_id} onChange={(e) => setF({ ...f, user_id: e.target.value })}>
-                                <option value="">All</option>
-                                {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                            </Select>
-                        </Field>
-                        <Field label="Status" htmlFor="f-status">
-                            <Select id="f-status" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>
-                                <option value="">All</option>
-                                {statuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                            </Select>
-                        </Field>
-                        <Field label="Search" htmlFor="f-q">
-                            <div className="flex gap-2">
-                                <Input id="f-q" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} placeholder="to, name, subject" />
-                                <Button type="submit" size="md" icon={<Filter className="h-4 w-4" />} aria-label="Apply filters" />
-                            </div>
-                        </Field>
-                    </form>
+                {tab === 'scheduled' ? (
+                    <Card padded={false}>
+                        <ScheduledTable scheduled={scheduled} timezone={timezone} />
+                    </Card>
+                ) : (
+                    <Card padded={false}>
+                        <form onSubmit={apply} className="grid gap-3 border-b border-line p-4 md:grid-cols-6">
+                            <Field label="From" htmlFor="f-from"><Input id="f-from" type="date" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} /></Field>
+                            <Field label="To" htmlFor="f-to"><Input id="f-to" type="date" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} /></Field>
+                            <Field label="Account" htmlFor="f-acc">
+                                <Select id="f-acc" value={f.account_id} onChange={(e) => setF({ ...f, account_id: e.target.value })}>
+                                    <option value="">All</option>
+                                    {accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+                                </Select>
+                            </Field>
+                            <Field label="Member" htmlFor="f-user">
+                                <Select id="f-user" value={f.user_id} onChange={(e) => setF({ ...f, user_id: e.target.value })}>
+                                    <option value="">All</option>
+                                    {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                </Select>
+                            </Field>
+                            <Field label="Status" htmlFor="f-status">
+                                <Select id="f-status" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>
+                                    <option value="">All</option>
+                                    {statuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                </Select>
+                            </Field>
+                            <Field label="Search" htmlFor="f-q">
+                                <div className="flex gap-2">
+                                    <Input id="f-q" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} placeholder="to, name, subject" />
+                                    <Button type="submit" size="md" icon={<Filter className="h-4 w-4" />} aria-label="Apply filters" />
+                                </div>
+                            </Field>
+                        </form>
 
-                    {rows.data.length === 0 ? (
-                        <EmptyState title="No sends match" description="Widen the date range or clear a filter." />
-                    ) : (
-                        <Table>
-                            <THead>
-                                <Tr>
-                                    <Th>When</Th>
-                                    <Th>To</Th>
-                                    <Th>Subject</Th>
-                                    <Th>By</Th>
-                                    <Th>Account</Th>
-                                    <Th className="text-right">Gap</Th>
-                                    <Th>Status</Th>
-                                </Tr>
-                            </THead>
-                            <TBody>
-                                {rows.data.map((r) => (
-                                    <Tr key={r.id} className="cursor-pointer" onClick={() => setOpen(r.id)}>
-                                        <Td className="whitespace-nowrap text-muted">{formatDateTime(r.sent_at || r.reserved_at, timezone)}</Td>
-                                        <Td>
-                                            <div className="max-w-[240px] truncate text-body">{r.to_email}</div>
-                                            {r.to_name && <div className="max-w-[240px] truncate text-xs text-subtle">{r.to_name}</div>}
-                                        </Td>
-                                        <Td className="max-w-[320px]">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="truncate text-muted">{r.subject}</span>
-                                                {r.attachments_count > 0 && <Paperclip className="h-3.5 w-3.5 shrink-0 text-subtle" />}
-                                            </div>
-                                            {r.campaign && <div className="text-xs text-subtle">{r.campaign}</div>}
-                                        </Td>
-                                        <Td className="whitespace-nowrap">{r.user}</Td>
-                                        <Td className="whitespace-nowrap text-muted">{r.account}</Td>
-                                        <Td className="whitespace-nowrap text-right tabular-nums text-muted">{formatGap(r.gap_seconds)}</Td>
-                                        <Td><Badge tone={STATUS_TONE[r.status] || 'neutral'} dot title={r.error || undefined}>{r.status_label}</Badge></Td>
+                        {rows.data.length === 0 ? (
+                            <EmptyState title="No sends match" description="Widen the date range or clear a filter." />
+                        ) : (
+                            <Table>
+                                <THead>
+                                    <Tr>
+                                        <Th>When</Th>
+                                        <Th>To</Th>
+                                        <Th>Subject</Th>
+                                        <Th>By</Th>
+                                        <Th>Account</Th>
+                                        <Th className="text-right">Gap</Th>
+                                        <Th>Status</Th>
                                     </Tr>
-                                ))}
-                            </TBody>
-                        </Table>
-                    )}
-                    <div className="border-t border-line px-4 py-3"><Pagination paginator={rows} /></div>
-                </Card>
+                                </THead>
+                                <TBody>
+                                    {rows.data.map((r) => (
+                                        <Tr key={r.id} className="cursor-pointer" onClick={() => setOpen(r.id)}>
+                                            <Td className="whitespace-nowrap text-muted">{formatDateTime(r.sent_at || r.reserved_at, timezone)}</Td>
+                                            <Td>
+                                                <div className="max-w-[240px] truncate text-body">{r.to_email}</div>
+                                                {r.to_name && <div className="max-w-[240px] truncate text-xs text-subtle">{r.to_name}</div>}
+                                            </Td>
+                                            <Td className="max-w-[320px]">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="truncate text-muted">{r.subject}</span>
+                                                    {r.attachments_count > 0 && <Paperclip className="h-3.5 w-3.5 shrink-0 text-subtle" />}
+                                                </div>
+                                                {r.campaign && <div className="text-xs text-subtle">{r.campaign}</div>}
+                                            </Td>
+                                            <Td className="whitespace-nowrap">{r.user}</Td>
+                                            <Td className="whitespace-nowrap text-muted">{r.account}</Td>
+                                            <Td className="whitespace-nowrap text-right tabular-nums text-muted">{formatGap(r.gap_seconds)}</Td>
+                                            <Td><Badge tone={STATUS_TONE[r.status] || 'neutral'} dot title={r.error || undefined}>{r.status_label}</Badge></Td>
+                                        </Tr>
+                                    ))}
+                                </TBody>
+                            </Table>
+                        )}
+                        <div className="border-t border-line px-4 py-3"><Pagination paginator={rows} /></div>
+                    </Card>
+                )}
 
                 {open && <Detail id={open} timezone={timezone} onClose={() => setOpen(null)} />}
             </PageShell>

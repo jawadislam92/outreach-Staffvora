@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, usePage } from '@inertiajs/react';
-import { Send } from 'lucide-react';
+import { CalendarClock, Send } from 'lucide-react';
 import AppShell from '@/Layouts/AppShell';
 import PageShell from '@/Components/Layout/PageShell';
 import PageHeader from '@/Components/Layout/PageHeader';
@@ -8,6 +8,7 @@ import AccountPicker from '@/Components/compose/AccountPicker';
 import AttachmentsField from '@/Components/compose/AttachmentsField';
 import BodyEditor from '@/Components/compose/BodyEditor';
 import RecipientStatus from '@/Components/compose/RecipientStatus';
+import ScheduleModal from '@/Components/ScheduleModal';
 import { Button, Card, Field, Input, Select } from '@/Components/ui';
 import notify from '@/Utils/notify';
 
@@ -27,6 +28,7 @@ export default function Compose({ accounts, templates, library, settings, prefil
         subject: '',
         body_md: '',
         ack_duplicate: false,
+        scheduled_for: '',
     });
     const [uploaded, setUploaded] = useState([]);
     const [selectedLibrary, setSelectedLibrary] = useState([]);
@@ -34,6 +36,7 @@ export default function Compose({ accounts, templates, library, settings, prefil
     const [check, setCheck] = useState(null);
     const [checking, setChecking] = useState(false);
     const [templateId, setTemplateId] = useState('');
+    const [scheduling, setScheduling] = useState(false);
     const checkTimer = useRef();
 
     const selectedRow = accounts.find((r) => r.account.id === Number(data.email_account_id));
@@ -75,25 +78,46 @@ export default function Compose({ accounts, templates, library, settings, prefil
     };
 
     const splitList = (s) => s.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
+    const withPayload = (extra = {}) => transform((d) => ({
+        ...d,
+        ...extra,
+        cc: splitList(d.cc),
+        bcc: splitList(d.bcc),
+        attachment_ids: [...uploaded.map((a) => a.id), ...selectedLibrary],
+    }));
+
+    const afterSuccess = () => {
+        reset('to', 'to_name', 'company', 'cc', 'bcc', 'subject', 'body_md', 'ack_duplicate', 'scheduled_for');
+        setUploaded([]);
+        setSelectedLibrary([]);
+        setCheck(null);
+        setScheduling(false);
+        setData('client_token', newToken(client_token));
+    };
 
     const submit = (e) => {
         e.preventDefault();
-        transform((d) => ({ ...d, cc: splitList(d.cc), bcc: splitList(d.bcc), attachment_ids: [...uploaded.map((a) => a.id), ...selectedLibrary] }));
+        withPayload();
         post(route('compose.send'), {
             preserveScroll: true,
-            onSuccess: () => {
-                reset('to', 'to_name', 'company', 'cc', 'bcc', 'subject', 'body_md', 'ack_duplicate');
-                setUploaded([]);
-                setSelectedLibrary([]);
-                setCheck(null);
-                setData('client_token', newToken(client_token));
-            },
+            onSuccess: afterSuccess,
             onError: () => setData('client_token', newToken(client_token)),
         });
     };
 
+    const schedule = (when) => {
+        withPayload({ scheduled_for: when });
+        post(route('schedule.store'), {
+            preserveScroll: true,
+            onSuccess: afterSuccess,
+            onError: (errs) => {
+                if (!errs.scheduled_for) setScheduling(false);
+            },
+        });
+    };
+
     const blocked = check?.suppressed || (check?.history?.count > 0 && !data.ack_duplicate);
-    const canSend = !processing && accounts.length > 0 && data.email_account_id && data.to && data.subject && data.body_md && !blocked;
+    const ready = !processing && accounts.length > 0 && data.email_account_id && data.to && data.subject && data.body_md && !blocked;
 
     return (
         <AppShell title="Compose">
@@ -131,23 +155,24 @@ export default function Compose({ accounts, templates, library, settings, prefil
 
                         <Card title="Message" actions={templates.length > 0 ? (
                             <div className="flex items-center gap-2">
-                                <Select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-52">
-                                    <option value="">Use a template…</option>
-                                    {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                </Select>
+                                <div className="w-52">
+                                    <Select value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+                                        <option value="">Use a template…</option>
+                                        {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    </Select>
+                                </div>
                                 <Button type="button" variant="secondary" size="sm" onClick={applyTemplate} disabled={!templateId}>Insert</Button>
                             </div>
                         ) : null}>
-                            <div className="space-y-4">
+                            <div className="space-y-5">
                                 <Field label="Subject" htmlFor="subject" required error={errors.subject}>
                                     <Input id="subject" value={data.subject} onChange={(e) => setData('subject', e.target.value)} placeholder="Quick question about {{company}}" />
                                 </Field>
                                 <BodyEditor value={data.body_md} onChange={(v) => setData('body_md', v)} variables={variables} signatureMd={selectedRow?.account.signature_md} error={errors.body_md} />
+                                <div className="border-t border-line pt-4">
+                                    <AttachmentsField uploaded={uploaded} setUploaded={setUploaded} library={library} selectedLibrary={selectedLibrary} setSelectedLibrary={setSelectedLibrary} maxMb={settings.max_attachment_mb} allowed={settings.allowed_extensions} error={errors.attachment_ids} />
+                                </div>
                             </div>
-                        </Card>
-
-                        <Card title="Attachments">
-                            <AttachmentsField uploaded={uploaded} setUploaded={setUploaded} library={library} selectedLibrary={selectedLibrary} setSelectedLibrary={setSelectedLibrary} maxMb={settings.max_attachment_mb} allowed={settings.allowed_extensions} error={errors.attachment_ids} />
                         </Card>
                     </div>
 
@@ -157,12 +182,15 @@ export default function Compose({ accounts, templates, library, settings, prefil
                         </Card>
 
                         <Card>
-                            <Button type="submit" block loading={processing} disabled={!canSend} icon={<Send className="h-4 w-4" />}>Send email</Button>
+                            <Button type="submit" block loading={processing && !scheduling} disabled={!ready} icon={<Send className="h-4 w-4" />}>Send now</Button>
+                            <Button type="button" block variant="secondary" className="mt-2" disabled={!ready} icon={<CalendarClock className="h-4 w-4" />} onClick={() => setScheduling(true)}>Schedule for later</Button>
                             <p className="mt-3 text-center text-xs text-subtle">Logged with your name, the account, the time and the gap since that account's last send.</p>
                             {flash?.blocked?.reason === 'cap_reached' && <p className="mt-2 text-center text-xs text-danger">{errors.email_account_id}</p>}
                         </Card>
                     </div>
                 </form>
+
+                <ScheduleModal open={scheduling} onClose={() => setScheduling(false)} onConfirm={schedule} timezone={settings.timezone} processing={processing} error={errors.scheduled_for} />
             </PageShell>
         </AppShell>
     );

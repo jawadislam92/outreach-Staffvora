@@ -140,11 +140,15 @@ export default function Show({ campaign, leads, filters, progress, statuses, tem
 
                 <Card padded={false} title="Leads" description={`${progress.total} in this campaign.`} actions={
                     <div className="flex items-center gap-2">
-                        <Select value={f.status} onChange={(e) => { const next = { ...f, status: e.target.value }; setF(next); apply(next); }} className="w-40">
-                            <option value="">All statuses</option>
-                            {statuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                        </Select>
-                        <Input value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && apply(f)} placeholder="Search email, name, company" className="w-56" />
+                        <div className="w-44">
+                            <Select value={f.status} onChange={(e) => { const next = { ...f, status: e.target.value }; setF(next); apply(next); }}>
+                                <option value="">All statuses</option>
+                                {statuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                            </Select>
+                        </div>
+                        <div className="w-60">
+                            <Input value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && apply(f)} placeholder="Search email, name, company" />
+                        </div>
                     </div>
                 }>
                     {leads.data.length === 0 ? (

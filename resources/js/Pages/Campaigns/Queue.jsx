@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, RefreshCw, Save, Send, SkipForward, Sparkles } from 'lucide-react';
+import { ArrowLeft, CalendarClock, RefreshCw, Save, Send, SkipForward } from 'lucide-react';
 import AppShell from '@/Layouts/AppShell';
 import PageShell from '@/Components/Layout/PageShell';
 import PageHeader from '@/Components/Layout/PageHeader';
@@ -8,6 +8,7 @@ import AccountPicker from '@/Components/compose/AccountPicker';
 import AttachmentsField from '@/Components/compose/AttachmentsField';
 import BodyEditor from '@/Components/compose/BodyEditor';
 import RecipientStatus from '@/Components/compose/RecipientStatus';
+import ScheduleModal from '@/Components/ScheduleModal';
 import { Badge, Button, Card, EmptyState, Field, Input } from '@/Components/ui';
 import { formatDateTime } from '@/Utils/format';
 import notify from '@/Utils/notify';
@@ -27,7 +28,7 @@ export default function Queue({ campaign, queue, current, accounts, library, pro
     const [selectedLibrary, setSelectedLibrary] = useState([]);
     const [token, setToken] = useState(newToken());
     const [busy, setBusy] = useState(null);
-    const [saved, setSaved] = useState(true);
+    const [scheduling, setScheduling] = useState(false);
 
     useEffect(() => {
         setSubject(current?.draft_full?.subject || '');
@@ -36,7 +37,7 @@ export default function Queue({ campaign, queue, current, accounts, library, pro
         setUploaded([]);
         setSelectedLibrary([]);
         setToken(newToken());
-        setSaved(true);
+        setScheduling(false);
     }, [current?.id, current?.draft_full?.updated_at]);
 
     useEffect(() => {
@@ -51,7 +52,6 @@ export default function Queue({ campaign, queue, current, accounts, library, pro
         setBusy('save');
         try {
             await window.axios.patch(route('leads.draft', current.id), { subject, body_md: body });
-            setSaved(true);
             notify.success('Draft saved.');
             router.reload({ only: ['current', 'queue', 'progress'] });
         } catch (err) {
@@ -73,9 +73,26 @@ export default function Queue({ campaign, queue, current, accounts, library, pro
         }, { preserveScroll: true, onFinish: () => setBusy(null) });
     };
 
+    const schedule = (when) => {
+        setBusy('schedule');
+        router.post(route('schedule.store'), {
+            lead_id: current.id,
+            email_account_id: accountId,
+            subject,
+            body_md: body,
+            attachment_ids: [...uploaded.map((a) => a.id), ...selectedLibrary],
+            ack_duplicate: ack,
+            scheduled_for: when,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => setScheduling(false),
+            onFinish: () => setBusy(null),
+        });
+    };
+
     const check = current ? { suppressed: current.suppressed, history: current.history } : null;
     const blocked = !current || current.suppressed || (current.history?.count > 0 && !ack);
-    const canSend = current && accountId && subject && body && !blocked && busy !== 'send';
+    const canSend = current && accountId && subject && body && !blocked && !busy;
 
     return (
         <AppShell title={`Review · ${campaign.name}`}>
@@ -95,7 +112,7 @@ export default function Queue({ campaign, queue, current, accounts, library, pro
                                 {queue.map((l) => (
                                     <li key={l.id}>
                                         <Link href={route('campaigns.queue', { campaign: campaign.id, lead: l.id })} preserveScroll only={['current']}
-                                            className={cx('block px-4 py-2.5 transition hover:bg-surface-2', current?.id === l.id && 'bg-accent/5 border-l-2 border-accent')}>
+                                            className={cx('block px-4 py-2.5 transition hover:bg-surface-2', current?.id === l.id && 'border-l-2 border-accent bg-accent/5')}>
                                             <div className="truncate text-sm font-medium text-body">{l.name || l.email}</div>
                                             <div className="flex items-center gap-2 truncate text-xs text-subtle">{l.company || l.email}{l.previously_contacted_count > 0 && <Badge tone="warning">contacted</Badge>}</div>
                                         </Link>
@@ -133,14 +150,13 @@ export default function Queue({ campaign, queue, current, accounts, library, pro
                                     }>
                                     <div className="space-y-4">
                                         <Field label="Subject" htmlFor="q-subject" required error={errors.subject}>
-                                            <Input id="q-subject" value={subject} onChange={(e) => { setSubject(e.target.value); setSaved(false); }} />
+                                            <Input id="q-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
                                         </Field>
-                                        <BodyEditor value={body} onChange={(v) => { setBody(v); setSaved(false); }} variables={current.variables} signatureMd={selectedRow?.account.signature_md} error={errors.body_md} rows={16} />
+                                        <BodyEditor value={body} onChange={setBody} variables={current.variables} signatureMd={selectedRow?.account.signature_md} error={errors.body_md} rows={16} />
+                                        <div className="border-t border-line pt-4">
+                                            <AttachmentsField uploaded={uploaded} setUploaded={setUploaded} library={library} selectedLibrary={selectedLibrary} setSelectedLibrary={setSelectedLibrary} maxMb={settings.max_attachment_mb} allowed={settings.allowed_extensions} error={errors.attachment_ids} />
+                                        </div>
                                     </div>
-                                </Card>
-
-                                <Card title="Attachments">
-                                    <AttachmentsField uploaded={uploaded} setUploaded={setUploaded} library={library} selectedLibrary={selectedLibrary} setSelectedLibrary={setSelectedLibrary} maxMb={settings.max_attachment_mb} allowed={settings.allowed_extensions} error={errors.attachment_ids} />
                                 </Card>
                             </>
                         )}
@@ -153,11 +169,14 @@ export default function Queue({ campaign, queue, current, accounts, library, pro
                         </Card>
                         <Card>
                             <Button block icon={<Send className="h-4 w-4" />} disabled={!canSend} loading={busy === 'send'} onClick={send}>Send to {current?.first_name || 'lead'}</Button>
+                            <Button block variant="secondary" className="mt-2" icon={<CalendarClock className="h-4 w-4" />} disabled={!canSend} onClick={() => setScheduling(true)}>Schedule for later</Button>
                             <Button block variant="ghost" className="mt-2" icon={<SkipForward className="h-4 w-4" />} disabled={!current} onClick={() => router.post(route('leads.skip', current.id))}>Skip this lead</Button>
                             <p className="mt-3 text-center text-xs text-subtle">Sending moves you to the next ready lead. Edits are saved with the send.</p>
                         </Card>
                     </div>
                 </div>
+
+                {current && <ScheduleModal open={scheduling} onClose={() => setScheduling(false)} onConfirm={schedule} timezone={settings.timezone} processing={busy === 'schedule'} error={errors.scheduled_for} />}
             </PageShell>
         </AppShell>
     );

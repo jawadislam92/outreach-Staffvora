@@ -1,8 +1,7 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Scheduled outreach emails. On the server a cron entry runs
+// `php artisan schedule:run` every minute; locally use `php artisan schedule:work`.
+Schedule::command('outreach:send-due')->everyMinute()->withoutOverlapping();

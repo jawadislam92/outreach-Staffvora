@@ -14,11 +14,13 @@ use App\Http\Controllers\CampaignImportController;
 use App\Http\Controllers\ComposeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LeadController;
+use App\Http\Controllers\LeadListController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\MarkdownPreviewController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RecipientCheckController;
 use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\TemplateController;
 use Illuminate\Support\Facades\Route;
 
@@ -71,6 +73,20 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/campaigns/{campaign}/generate', [CampaignGenerateController::class, 'generate'])->name('campaigns.generate');
     Route::get('/campaigns/{campaign}/progress', [CampaignGenerateController::class, 'progress'])->name('campaigns.progress');
+
+    // Shared lead list (static lead routes MUST come before /leads/{lead})
+    Route::get('/leads', [LeadListController::class, 'index'])->name('leads.index');
+    Route::post('/leads', [LeadListController::class, 'store'])->name('leads.store');
+    Route::post('/leads/assign', [LeadListController::class, 'assign'])->name('leads.assign');
+    Route::get('/leads/export', [LeadListController::class, 'export'])->name('leads.export');
+    Route::get('/leads/import', [CampaignImportController::class, 'create'])->name('leads.import.create');
+    Route::post('/leads/import/preview', [CampaignImportController::class, 'preview'])->name('leads.import.preview');
+    Route::post('/leads/import/store', [CampaignImportController::class, 'store'])->name('leads.import.store');
+
+    // Scheduled sending
+    Route::post('/schedule', [ScheduleController::class, 'store'])->name('schedule.store');
+    Route::post('/scheduled/{scheduledEmail}/cancel', [ScheduleController::class, 'cancel'])->name('schedule.cancel');
+    Route::post('/scheduled/{scheduledEmail}/send-now', [ScheduleController::class, 'sendNow'])->name('schedule.send-now');
 
     Route::get('/leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
     Route::patch('/leads/{lead}/draft', [LeadController::class, 'saveDraft'])->name('leads.draft');

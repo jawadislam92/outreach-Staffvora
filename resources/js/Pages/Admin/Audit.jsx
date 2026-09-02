@@ -33,10 +33,12 @@ export default function Audit({ logs, filters, actions, timezone }) {
                     title="Audit trail"
                     description="Who changed caps, accounts, users and settings — and when."
                     actions={
-                        <Select value={filters.action || ''} onChange={(e) => filter(e.target.value)} className="w-56">
-                            <option value="">All actions</option>
-                            {actions.map((a) => <option key={a} value={a}>{a}</option>)}
-                        </Select>
+                        <div className="w-56">
+                            <Select value={filters.action || ''} onChange={(e) => filter(e.target.value)}>
+                                <option value="">All actions</option>
+                                {actions.map((a) => <option key={a} value={a}>{a}</option>)}
+                            </Select>
+                        </div>
                     }
                 />
                 <Card padded={false} footer={<Pagination paginator={logs} />}>

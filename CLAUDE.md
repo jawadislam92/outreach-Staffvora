@@ -17,16 +17,22 @@ backend and frontend patterns, test conventions. The full design is the approved
   request, never returned to the browser, never in audit payloads.
 - Caps and reports key on `sent_emails.local_date` (business timezone), not UTC timestamps.
 - Aggregate queries over `sent_emails` use `DB::table(...)`, not Eloquent (enum cast trap).
-- Pages are full-width; only semantic theme tokens; nav items appear automatically per route name.
-- Keep it local: never deploy, push, or touch production without an explicit instruction.
+- Pages are full-width; only semantic theme tokens (violet/fuchsia gradient brand, always-dark
+  sidebar via the --side-* tokens); nav items appear automatically per route name in AppShell.
+- Scheduled sends fire through `outreach:send-due` (Laravel scheduler, every minute) →
+  `ScheduledSender` → SendService; cap blocks re-queue with back-off, everything else fails loudly.
+- Leads may exist without a campaign (the shared list at /leads); campaign_id is nullable.
+- Never deploy, push, or touch production without an explicit instruction. Production =
+  https://outreach.staffvora.com (see docs/DEPLOY.md).
 
 ## Working here
 ```powershell
 $env:PATH = "C:\laragon\bin\php\php-8.3.30-Win32-vs16-x64;C:\laragon\bin\composer;C:\laragon\bin\nodejs\node-v22;" + $env:PATH
-Set-Location C:\laragon\www\outreach
+Set-Location C:\laragon\www\outreach-staffvora
 php artisan test --compact     # must stay green
 npm run build                  # after any JSX change (no HMR set up)
 php artisan serve --host=localhost --port=8000   # Google OAuth needs exactly this host
+php artisan schedule:work      # only needed when testing scheduled sends locally
 ```
 Local login: `admin@outreach.test` / `password` (seeded). Demo data: `php artisan db:seed --class=DemoSeeder`.
 

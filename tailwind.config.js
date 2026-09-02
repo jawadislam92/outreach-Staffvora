@@ -33,6 +33,12 @@ export default {
                 'danger-soft': 'var(--danger-soft)',
                 info: 'var(--info)',
                 'info-soft': 'var(--info-soft)',
+                // The always-dark sidebar surface.
+                side: 'var(--side-bg)',
+                'side-2': 'var(--side-surface)',
+                'side-line': 'var(--side-border)',
+                'side-text': 'var(--side-text)',
+                'side-muted': 'var(--side-muted)',
             },
         },
     },

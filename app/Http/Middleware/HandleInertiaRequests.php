@@ -43,6 +43,7 @@ class HandleInertiaRequests extends Middleware
                 'name' => config('app.name'),
                 'timezone' => $user ? app(Settings::class)->timezone() : 'UTC',
                 'accounts_needing_reconnect' => $needsReconnect,
+                'scheduled_count' => $user ? \App\Models\ScheduledEmail::query()->pending()->count() : 0,
             ],
             'theme' => in_array($theme, self::THEMES, true) ? $theme : 'light',
             'flash' => [

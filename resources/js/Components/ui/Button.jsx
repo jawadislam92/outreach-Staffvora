@@ -5,7 +5,7 @@ import Spinner from './Spinner';
 const cx = (...a) => a.filter(Boolean).join(' ');
 
 const VARIANTS = {
-    primary: 'bg-accent text-white hover:brightness-110 active:brightness-95 border border-transparent shadow-sm',
+    primary: 'bg-brand-gradient text-white hover:brightness-110 active:brightness-95 border border-transparent shadow-md shadow-accent/20',
     secondary: 'bg-surface text-body border border-line hover:bg-surface-2',
     ghost: 'bg-transparent text-muted border border-transparent hover:bg-surface-2 hover:text-body',
     danger: 'bg-danger text-white hover:brightness-110 active:brightness-95 border border-transparent',

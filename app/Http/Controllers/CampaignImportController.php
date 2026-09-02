@@ -26,17 +26,23 @@ class CampaignImportController extends Controller
 {
     private const TTL_MINUTES = 30;
 
-    public function create(Campaign $campaign): Response
+    /** With a campaign → campaign import; without ($campaign null) → shared lead list. */
+    public function create(?Campaign $campaign = null): Response
     {
         return Inertia::render('Campaigns/Import', [
-            'campaign' => CampaignController::campaignShape($campaign),
+            'campaign' => $campaign ? CampaignController::campaignShape($campaign) : null,
             'fields' => LeadCsvParser::FIELDS,
             'max_rows' => (int) config('outreach.import.max_rows'),
+            'endpoints' => [
+                'preview' => $campaign ? route('campaigns.import.preview', $campaign) : route('leads.import.preview'),
+                'store' => $campaign ? route('campaigns.import.store', $campaign) : route('leads.import.store'),
+            ],
         ]);
     }
 
-    public function preview(Request $request, Campaign $campaign, LeadCsvParser $parser): JsonResponse
+    public function preview(Request $request, ?Campaign $campaign = null): JsonResponse
     {
+        $parser = app(LeadCsvParser::class);
         $request->validate([
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:4096'],
         ]);
@@ -50,7 +56,7 @@ class CampaignImportController extends Controller
         $token = (string) Str::ulid();
         Cache::put($this->key($token), [
             'user_id' => $request->user()->id,
-            'campaign_id' => $campaign->id,
+            'campaign_id' => $campaign?->id,
             'parsed' => $parsed->toArray(),
         ], now()->addMinutes(self::TTL_MINUTES));
 
@@ -66,8 +72,9 @@ class CampaignImportController extends Controller
         ]);
     }
 
-    public function store(Request $request, Campaign $campaign, LeadImporter $importer): JsonResponse
+    public function store(Request $request, ?Campaign $campaign = null): JsonResponse
     {
+        $importer = app(LeadImporter::class);
         $data = $request->validate([
             'token' => ['required', 'string', 'max:40'],
             'mapping' => ['required', 'array'],
@@ -76,7 +83,7 @@ class CampaignImportController extends Controller
         ]);
 
         $cached = Cache::get($this->key($data['token']));
-        if (! is_array($cached) || $cached['user_id'] !== $request->user()->id || $cached['campaign_id'] !== $campaign->id) {
+        if (! is_array($cached) || $cached['user_id'] !== $request->user()->id || $cached['campaign_id'] !== $campaign?->id) {
             throw ValidationException::withMessages(['token' => 'This upload expired — please upload the file again.']);
         }
 
@@ -98,11 +105,18 @@ class CampaignImportController extends Controller
             Cache::put($this->key($data['token']).':rejects', ['user_id' => $request->user()->id, 'rows' => $result->rejected], now()->addMinutes(self::TTL_MINUTES));
         }
 
-        AuditLog::record('campaign.import', $request->user(), 'campaign', $campaign->id, null, $result->toArray() + ['mapping' => $mapping]);
+        AuditLog::record(
+            $campaign ? 'campaign.import' : 'leads.import',
+            $request->user(),
+            $campaign ? 'campaign' : 'leads',
+            $campaign?->id,
+            null,
+            $result->toArray() + ['mapping' => $mapping],
+        );
 
         return response()->json($result->toArray() + [
             'rejects_url' => $result->rejected !== [] ? route('campaigns.import.rejects', $data['token']) : null,
-            'campaign_url' => route('campaigns.show', $campaign),
+            'campaign_url' => $campaign ? route('campaigns.show', $campaign) : route('leads.index'),
         ]);
     }
 
