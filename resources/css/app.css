@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===================== Theme tokens (Light / Dark / Black) =====================
+   Switched by `data-theme` on <html> (cookie `outreach_theme`, set by the
+   ThemeSwitcher and read server-side in app.blade.php so there is no flash).
+   Components only use the semantic utilities backed by these vars:
+   bg-app, bg-surface, bg-surface-2, border-line, text-body, text-muted,
+   text-subtle, bg-accent / text-accent, and the status tokens. */
+:root, [data-theme="light"] {
+    color-scheme: light;
+    --bg: #f5f7fb;
+    --surface: #ffffff;
+    --surface-2: #f1f5f9;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --text-muted: #475569;
+    --text-subtle: #616f85;
+    --accent: #2563eb;
+
+    /* Categorical data-viz slots: 1 violet, 2 green, 3 blue, 4 amber, 5 pink. */
+    --viz-1: #7c3aed; --viz-2: #059669; --viz-3: #2563eb; --viz-4: #b45309; --viz-5: #db2777;
+    --viz-1-soft: color-mix(in srgb, #7c3aed 12%, transparent);
+    --viz-2-soft: color-mix(in srgb, #059669 12%, transparent);
+    --viz-3-soft: color-mix(in srgb, #2563eb 12%, transparent);
+    --viz-4-soft: color-mix(in srgb, #b45309 12%, transparent);
+    --viz-5-soft: color-mix(in srgb, #db2777 12%, transparent);
+}
+[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #070b18;
+    --surface: #0e1628;
+    --surface-2: #131f38;
+    --border: #1e2b45;
+    --text: #eef2fb;
+    --text-muted: #aeb9d0;
+    --text-subtle: #8790a6;
+    --accent: #3b82f6;
+
+    --viz-1: #8b5cf6; --viz-2: #10b981; --viz-3: #3b82f6; --viz-4: #f59e0b; --viz-5: #ec4899;
+    --viz-1-soft: color-mix(in srgb, #8b5cf6 14%, transparent);
+    --viz-2-soft: color-mix(in srgb, #10b981 14%, transparent);
+    --viz-3-soft: color-mix(in srgb, #3b82f6 14%, transparent);
+    --viz-4-soft: color-mix(in srgb, #f59e0b 14%, transparent);
+    --viz-5-soft: color-mix(in srgb, #ec4899 14%, transparent);
+}
+[data-theme="black"] {
+    color-scheme: dark;
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --surface-2: #161616;
+    --border: #262626;
+    --text: #fafafa;
+    --text-muted: #a3a3a3;
+    --text-subtle: #8a8a8a;
+    --accent: #3b82f6;
+
+    --viz-1: #8b5cf6; --viz-2: #10b981; --viz-3: #3b82f6; --viz-4: #f59e0b; --viz-5: #ec4899;
+    --viz-1-soft: color-mix(in srgb, #8b5cf6 14%, transparent);
+    --viz-2-soft: color-mix(in srgb, #10b981 14%, transparent);
+    --viz-3-soft: color-mix(in srgb, #3b82f6 14%, transparent);
+    --viz-4-soft: color-mix(in srgb, #f59e0b 14%, transparent);
+    --viz-5-soft: color-mix(in srgb, #ec4899 14%, transparent);
+}
+
+/* Semantic status tokens (theme-stable hues; alpha tints read on any bg). */
+:root {
+    --success: #16a34a; --success-soft: rgba(22, 163, 74, 0.14);
+    --warning: #d97706; --warning-soft: rgba(217, 119, 6, 0.16);
+    --danger:  #dc2626; --danger-soft:  rgba(220, 38, 38, 0.14);
+    --info:    #2563eb; --info-soft:    rgba(37, 99, 235, 0.14);
+}
+[data-theme="dark"], [data-theme="black"] {
+    --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --info: #3b82f6;
+}
+
+html { background-color: var(--bg); color: var(--text); }
+::selection { background-color: var(--accent); color: #fff; }
+
+/* One branded keyboard-focus ring for every theme. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@layer base {
+    /* Native form controls follow the active theme (mirrors @tailwindcss/forms'
+       selector list at the same specificity so utilities still win). */
+    [type='text'],
+    [type='email'],
+    [type='url'],
+    [type='password'],
+    [type='number'],
+    [type='date'],
+    [type='datetime-local'],
+    [type='month'],
+    [type='search'],
+    [type='tel'],
+    [type='time'],
+    [type='week'],
+    [multiple],
+    textarea,
+    select,
+    input:where(:not([type])) {
+        background-color: var(--surface-2);
+        color: var(--text);
+        border-color: var(--border);
+    }
+    select option {
+        background-color: var(--surface);
+        color: var(--text);
+    }
+}
+
+/* Rendered-Markdown preview (compose / draft review / template preview). */
+.md-preview { font-size: 14px; line-height: 1.6; color: var(--text); }
+.md-preview > :first-child { margin-top: 0; }
+.md-preview p { margin: 0 0 0.9em; }
+.md-preview a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.md-preview strong { font-weight: 600; }
+.md-preview ul, .md-preview ol { margin: 0 0 0.9em 1.25em; }
+.md-preview ul { list-style: disc; }
+.md-preview ol { list-style: decimal; }
+.md-preview li { margin: 0.2em 0; }
+.md-preview h1, .md-preview h2, .md-preview h3 { font-weight: 600; margin: 1em 0 0.4em; }
+.md-preview h1 { font-size: 1.25em; }
+.md-preview h2 { font-size: 1.15em; }
+.md-preview h3 { font-size: 1.05em; }
+.md-preview blockquote { border-left: 3px solid var(--border); padding-left: 0.8em; color: var(--text-muted); margin: 0 0 0.9em; }
+.md-preview code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 0.3em; font-size: 0.92em; }
+.md-preview hr { border: 0; border-top: 1px solid var(--border); margin: 1em 0; }
+
+/* Thin, theme-aware scrollbars for scroll regions. */
+.scroll-thin { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
