@@ -55,7 +55,7 @@ function SideSection({ label, items, onNavigate }) {
     if (items.length === 0) return null;
     return (
         <div>
-            {label && <p className="mb-1.5 mt-5 px-3 text-[10.5px] font-bold uppercase tracking-[0.14em] text-side-muted/70">{label}</p>}
+            {label && <p className="mb-1.5 mt-5 px-3 text-[11px] font-bold uppercase tracking-[0.14em] text-side-muted">{label}</p>}
             <div className="space-y-0.5">
                 {items.map((item) => <SideLink key={item.route} item={item} onNavigate={onNavigate} />)}
             </div>
