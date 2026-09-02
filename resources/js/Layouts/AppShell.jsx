@@ -92,7 +92,7 @@ function SidebarBody({ user, app, groups, onNavigate }) {
                             </span>
                         </button>
                     </Dropdown.Trigger>
-                    <Dropdown.Content align="left" width="56" contentClasses="py-1 bg-surface border border-line">
+                    <Dropdown.Content align="left" direction="up" width="56" contentClasses="py-1 bg-surface border border-line">
                         <div className="border-b border-line px-3 py-2.5">
                             <div className="truncate text-sm font-semibold text-body">{user?.name}</div>
                             <div className="truncate text-xs text-subtle">{user?.email}</div>

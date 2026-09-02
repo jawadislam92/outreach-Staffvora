@@ -172,12 +172,18 @@ export default function Index({ leads, filters, campaigns, counts, timezone }) {
                         <h2 className="text-lg font-semibold text-body">Add {selected.length} lead{selected.length === 1 ? '' : 's'} to a campaign</h2>
                         <p className="mt-1 text-sm text-muted">They join the campaign's draft queue; already-present addresses are skipped.</p>
                         <div className="mt-4">
-                            <Field label="Campaign" htmlFor="assign-campaign">
-                                <Select id="assign-campaign" value={assignCampaign} onChange={(e) => setAssignCampaign(e.target.value)}>
-                                    <option value="">Choose…</option>
-                                    {campaigns.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </Select>
-                            </Field>
+                            {campaigns.filter((c) => c.active).length === 0 ? (
+                                <p className="rounded-lg bg-surface-2 px-3 py-2.5 text-sm text-muted">
+                                    No campaigns yet — create one on the <a href={route('campaigns.index')} className="font-medium text-accent hover:underline">Campaigns</a> page first, then add leads to it here.
+                                </p>
+                            ) : (
+                                <Field label="Campaign" htmlFor="assign-campaign">
+                                    <Select id="assign-campaign" value={assignCampaign} onChange={(e) => setAssignCampaign(e.target.value)}>
+                                        <option value="">Choose…</option>
+                                        {campaigns.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </Select>
+                                </Field>
+                            )}
                         </div>
                         <div className="mt-6 flex justify-end gap-2">
                             <Button variant="secondary" onClick={() => setAssignOpen(false)}>Cancel</Button>

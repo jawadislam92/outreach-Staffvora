@@ -27,16 +27,23 @@ const Trigger = ({ children }) => {
 
 const WIDTHS = { 48: 'w-48', 56: 'w-56', 64: 'w-64', 72: 'w-72' };
 
-const Content = ({ align = 'right', width = '48', contentClasses = 'py-1 bg-surface', children }) => {
+/**
+ * direction="up" opens the menu above the trigger — required when the trigger
+ * sits at the bottom of the viewport (the sidebar profile menu), where a
+ * downward menu is clipped off-screen.
+ */
+const Content = ({ align = 'right', direction = 'down', width = '48', contentClasses = 'py-1 bg-surface', children }) => {
     const { open, setOpen } = useContext(DropDownContext);
 
-    let alignmentClasses = 'origin-top';
-    if (align === 'left') alignmentClasses = 'ltr:origin-top-left rtl:origin-top-right start-0';
-    else if (align === 'right') alignmentClasses = 'ltr:origin-top-right rtl:origin-top-left end-0';
+    const up = direction === 'up';
+    let alignmentClasses = up ? 'origin-bottom' : 'origin-top';
+    if (align === 'left') alignmentClasses = `${up ? 'origin-bottom-left' : 'origin-top-left'} start-0`;
+    else if (align === 'right') alignmentClasses = `${up ? 'origin-bottom-right' : 'origin-top-right'} end-0`;
+    const placement = up ? 'bottom-full mb-2' : 'mt-2';
 
     return (
         <Transition show={open} enter="transition ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-            <div className={`absolute z-50 mt-2 rounded-xl shadow-lg ${alignmentClasses} ${WIDTHS[width] || ''}`} onClick={() => setOpen(false)}>
+            <div className={`absolute z-50 ${placement} rounded-xl shadow-lg ${alignmentClasses} ${WIDTHS[width] || ''}`} onClick={() => setOpen(false)}>
                 <div className={`overflow-hidden rounded-xl ring-1 ring-line ${contentClasses}`}>{children}</div>
             </div>
         </Transition>
